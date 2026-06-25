@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>F&B Wastage Tracker</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.63.4/dist/umd/supabase.min.js"></script>
+<!-- No external CDN needed - using direct REST API -->
 <style>
   :root {
     --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3250;
@@ -267,23 +267,32 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── Supabase Setup ─────────────────────────────────────────
+// ─── Supabase REST API (no CDN needed) ──────────────────────
 const SUPABASE_URL = 'https://bgqsuqilxuequieioibd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_WFlusXd3zZkIO4-YVw8GTQ_d7nmPD_s';
-let db;
-try {
-  const { createClient } = supabase;
-  db = createClient(SUPABASE_URL, SUPABASE_KEY);
-} catch(e) {
-  console.error('Supabase failed to initialise:', e);
-  // Stub so tab navigation and form UI still work
-  db = {
-    from: () => ({ select: () => Promise.resolve({ data: [], error: { message: 'No database connection' } }),
-                   insert: () => Promise.resolve({ error: { message: 'No database connection' } }),
-                   delete: () => ({ eq: () => Promise.resolve({ error: null }) }) }),
-    channel: () => ({ on: function(){ return this; }, subscribe: function(cb){ cb('CLOSED'); return this; } })
-  };
-}
+const SB_HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=minimal'
+};
+
+const db = {
+  from: (table) => ({
+    select: (cols='*') => fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${cols}&order=created_at.desc`, { headers: SB_HEADERS })
+      .then(r => r.json().then(data => r.ok ? { data, error: null } : { data: null, error: data })),
+    insert: (rows) => fetch(`${SUPABASE_URL}/rest/v1/${table}`, { method:'POST', headers: SB_HEADERS, body: JSON.stringify(rows) })
+      .then(r => r.ok ? { error: null } : r.json().then(e => ({ error: e }))),
+    delete: () => ({
+      eq: (col, val) => fetch(`${SUPABASE_URL}/rest/v1/${table}?${col}=eq.${val}`, { method:'DELETE', headers: SB_HEADERS })
+        .then(r => ({ error: r.ok ? null : { message: 'Delete failed' } }))
+    })
+  }),
+  channel: () => ({ on: function(){ return this; }, subscribe: function(cb){ cb('CLOSED'); return this; } })
+};
+
+// Poll for updates every 30s instead of realtime websocket
+setInterval(() => loadData(), 30000);
 
 let cache = [];
 const MAX_ROWS = 10;
@@ -550,9 +559,10 @@ async function saveAllEntries() {
 
 // ─── Load & Sync ─────────────────────────────────────────────
 async function loadData() {
-  const { data, error } = await db.from('wastage').select('*').order('created_at', { ascending: false });
-  if (error) { console.error(error); return; }
+  const { data, error } = await db.from('wastage').select('*');
+  if (error) { console.error(error); setSyncStatus(false); return; }
   cache = data || [];
+  setSyncStatus(true);
   updateItemsDatalist();
   const page = document.querySelector('.page.active');
   if (page?.id === 'page-dashboard') renderDashboard();
@@ -560,14 +570,13 @@ async function loadData() {
   if (page?.id === 'page-risk') renderRisk();
 }
 
-db.channel('wastage-changes')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'wastage' }, () => { loadData(); })
-  .subscribe((status) => {
-    const dot = document.getElementById('sync-dot');
-    const label = document.getElementById('sync-label');
-    if (status === 'SUBSCRIBED') { dot.classList.remove('offline'); label.textContent = 'Live sync'; }
-    else { dot.classList.add('offline'); label.textContent = 'Offline'; }
-  });
+// Status shown after first successful loadData()
+function setSyncStatus(ok) {
+  const dot = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  if (ok) { dot.classList.remove('offline'); label.textContent = 'Connected'; }
+  else { dot.classList.add('offline'); label.textContent = 'Offline'; }
+}
 
 // ─── Navigation ──────────────────────────────────────────────
 function showPage(id) {
@@ -621,8 +630,4 @@ function riskColor(pct) {
 }
 
 function makeRiskBars(grouped, total, maxBars=10) {
-  const sorted = Object.entries(grouped).sort((a,b)=>b[1]-a[1]).slice(0,maxBars);
-  const max = sorted[0]?.[1]||1;
-  return sorted.map(([key,val]) => {
-    const pct=val/max, totalPct=val/total, color=riskColor(totalPct);
-    return `<div class="risk-
+  co
