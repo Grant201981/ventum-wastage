@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F&B Wastage Tracker</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3250;
+    --accent: #4f6ef7; --text: #e8eaf6; --muted: #6b7280;
+    --red: #ef5350; --orange: #ffa726; --green: #66bb6a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .nav-logo { font-size: 18px; font-weight: 700; color: var(--accent); padding: 16px 0; margin-right: 32px; letter-spacing: -0.5px; white-space: nowrap; }
+  .nav-logo span { color: var(--text); }
+  .nav-tab { padding: 18px 16px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; white-space: nowrap; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-left: auto; margin-right: 4px; }
+  .sync-dot.offline { background: var(--red); }
+  .sync-label { font-size: 11px; color: var(--muted); }
+  .page { display: none; padding: 28px 24px; max-width: 1100px; margin: 0 auto; }
+  .page.active { display: block; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .card-value { font-size: 32px; font-weight: 700; }
+  .card-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  @media (max-width: 900px) { .grid-4 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .grid-4 { grid-template-columns: 1fr; } .grid-2 { grid-template-columns: 1fr; } }
+  .form-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .form-section h2 { font-size: 17px; font-weight: 600; margin-bottom: 20px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 13px; font-weight: 500; color: var(--muted); }
+  input, select, textarea { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; padding: 10px 12px; transition: border-color 0.15s; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 60px; }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #3d5ce3; }
+  .btn-primary:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .btn-danger:hover { background: rgba(244,67,54,0.1); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .empty-state { text-align: center; padding: 48px; color: var(--muted); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+  .badge-red { background: rgba(239,83,80,0.15); color: var(--red); }
+  .badge-orange { background: rgba(255,167,38,0.15); color: var(--orange); }
+  .badge-green { background: rgba(102,187,106,0.15); color: var(--green); }
+  .badge-blue { background: rgba(79,110,247,0.15); color: var(--accent); }
+  .badge-purple { background: rgba(124,77,255,0.15); color: #b39ddb; }
+  .risk-bar-wrap { margin-bottom: 14px; }
+  .risk-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+  .risk-bar-bg { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .risk-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+  .filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+  .filters select, .filters input { font-size: 13px; padding: 8px 12px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; z-index: 999; opacity: 0; transform: translateY(16px); transition: all 0.25s; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: var(--red); }
+  .page-header { margin-bottom: 24px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; }
+  .page-header p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .section-header h2 { font-size: 16px; font-weight: 600; }
+  .cost-cell { font-weight: 600; color: #ff9800; }
+  .shift-date { font-weight: 600; color: var(--text); }
+  .shift-info { font-size: 12px; color: var(--muted); }
+  .notes-cell { font-size: 12px; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .items-scroll { overflow-x: auto; margin-bottom: 12px; }
+  .items-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+  .items-table th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .items-table td { padding: 5px 5px; vertical-align: top; }
+  .items-table td input, .items-table td select { font-size: 13px; padding: 8px 9px; width: 100%; min-width: 0; }
+  .row-num { font-size: 11px; font-weight: 700; color: var(--muted); text-align: center; padding-top: 14px !important; width: 28px; }
+  .row-del { text-align: center; padding-top: 10px !important; width: 32px; }
+  .row-del button { background: none; border: none; color: var(--border); font-size: 16px; cursor: pointer; padding: 4px 6px; border-radius: 4px; line-height: 1; }
+  .row-del button:hover { color: var(--red); background: rgba(239,83,80,0.1); }
+  .item-row { border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .item-row:last-child { border-bottom: none; }
+  .rows-footer { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+  .row-count-label { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">F&B <span>Wastage</span></div>
+  <div class="nav-tab active" onclick="showPage('dashboard')">Dashboard</div>
+  <div class="nav-tab" onclick="showPage('log')">Log Wastage</div>
+  <div class="nav-tab" onclick="showPage('history')">History</div>
+  <div class="nav-tab" onclick="showPage('risk')">Risk Analysis</div>
+  <div class="sync-dot" id="sync-dot"></div>
+  <div class="sync-label" id="sync-label">Connecting...</div>
+</nav>
+
+<div class="page active" id="page-dashboard">
+  <div class="page-header"><h1>Overview</h1><p id="dash-date"></p></div>
+  <div class="grid-4">
+    <div class="card"><div class="card-title">Total Wastage Cost</div><div class="card-value" id="stat-total-cost">AED 0.00</div><div class="card-sub" id="stat-total-sub">All time</div></div>
+    <div class="card"><div class="card-title">Today's Wastage</div><div class="card-value" id="stat-today">AED 0.00</div><div class="card-sub">Current day</div></div>
+    <div class="card"><div class="card-title">Total Entries</div><div class="card-value" id="stat-entries">0</div><div class="card-sub" id="stat-entries-sub">Logged incidents</div></div>
+    <div class="card"><div class="card-title">Top Risk Item</div><div class="card-value" style="font-size:20px" id="stat-top-item">&#8212;</div><div class="card-sub" id="stat-top-item-cost">No data yet</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="form-section" style="margin-bottom:0">
+      <div class="section-header"><h2>Recent Wastage Entries</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>Item</th><th>Qty</th><th>Cost</th><th>Reason</th><th>Date/Shift</th></tr></thead><tbody id="dash-recent-body"></tbody></table></div>
+    </div>
+    <div class="form-section" style="margin-bottom:0">
+      <div class="section-header"><h2>Top Wasted Items</h2></div>
+      <div id="dash-top-items"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-log">
+  <div class="page-header"><h1>Log Wastage</h1><p>Fill in the shift details, then add up to 10 items below</p></div>
+  <div class="form-section">
+    <h2>Shift Details</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+      <div class="form-group"><label>Shift Time</label><input type="time" id="f-time"></div>
+      <div class="form-group"><label>Shift Label (optional)</label><input type="text" id="f-shift-label" placeholder="e.g. Breakfast, Dinner, AM, PM"></div>
+      <div class="form-group"><label>Staff Member</label><input type="text" id="f-staff" placeholder="Your name" required></div>
+    </div>
+  </div>
+  <div class="form-section">
+    <h2>Wastage Items</h2>
+    <div class="items-scroll">
+      <table class="items-table">
+        <thead><tr>
+          <th class="row-num">#</th>
+          <th style="min-width:140px">Category *</th>
+          <th style="min-width:200px">Item *</th>
+          <th style="min-width:80px">Qty *</th>
+          <th style="min-width:90px">Unit</th>
+          <th style="min-width:100px">Cost (AED)</th>
+          <th style="min-width:160px">Reason *</th>
+          <th style="min-width:140px">Notes</th>
+          <th class="row-del"></th>
+        </tr></thead>
+        <tbody id="item-rows-body"></tbody>
+      </table>
+    </div>
+    <div class="rows-footer">
+      <button type="button" class="btn" style="background:var(--surface2);color:var(--text);font-size:13px;padding:8px 16px;" onclick="addItemRow()" id="add-row-btn">+ Add Row</button>
+      <span class="row-count-label" id="row-count-label"></span>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <button class="btn btn-primary" id="submit-btn" onclick="saveAllEntries()">Save All Entries</button>
+    <button class="btn" style="background:var(--surface2);color:var(--muted);" onclick="clearLog()">Clear All</button>
+    <span id="save-status" style="font-size:13px;color:var(--muted);"></span>
+  </div>
+  <datalist id="items-datalist"></datalist>
+</div>
+
+<div class="page" id="page-history">
+  <div class="page-header"><h1>Wastage History</h1><p>All logged wastage entries</p></div>
+  <div class="filters">
+    <input type="date" id="filter-from" title="From date">
+    <input type="date" id="filter-to" title="To date">
+    <select id="filter-reason">
+      <option value="">All reasons</option>
+      <option>Overproduction</option><option>Spoilage / Expired</option><option>Prep Error</option>
+      <option>Cooking Error</option><option>Dropped / Spilled</option>
+      <option>Customer Return / Complaint</option><option>Incorrect Order</option>
+      <option>Cross-contamination</option><option>Portion Inconsistency</option>
+      <option>Storage Failure</option><option>Other</option>
+    </select>
+    <select id="filter-category">
+      <option value="">All categories</option>
+      <option>Sandwiches</option><option>Avo Toast</option><option>Pots</option>
+      <option>Croissants</option><option>Cookies</option><option>Banana Bread</option>
+      <option>Quiches</option><option>Nattas</option><option>Coffee</option><option>Other</option>
+    </select>
+    <input type="text" id="filter-search" placeholder="Search item or staff..." style="min-width:180px">
+    <button class="btn" style="background:var(--surface2);color:var(--text);" onclick="renderHistory()">Filter</button>
+    <button class="btn" style="background:var(--surface2);color:var(--muted);" onclick="clearFilters()">Clear</button>
+    <button class="btn btn-primary" onclick="exportCSV()" style="margin-left:auto;">Export CSV</button>
+  </div>
+  <div class="form-section">
+    <div class="section-header"><h2>All Entries</h2><span id="history-count" style="font-size:13px;color:var(--muted)"></span></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Date</th><th>Shift</th><th>Staff</th><th>Item</th><th>Category</th><th>Qty</th><th>Cost</th><th>Reason</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="history-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-risk">
+  <div class="page-header"><h1>Risk Analysis</h1><p>Identify patterns and high-risk areas</p></div>
+  <div class="grid-4" style="margin-bottom:24px">
+    <div class="card"><div class="card-title">Highest Risk Reason</div><div class="card-value" style="font-size:18px" id="risk-top-reason">&#8212;</div><div class="card-sub" id="risk-top-reason-cost"></div></div>
+    <div class="card"><div class="card-title">Highest Risk Category</div><div class="card-value" style="font-size:18px" id="risk-top-cat">&#8212;</div><div class="card-sub" id="risk-top-cat-cost"></div></div>
+    <div class="card"><div class="card-title">Highest Risk Staff</div><div class="card-value" style="font-size:18px" id="risk-top-staff">&#8212;</div><div class="card-sub" id="risk-top-staff-cost"></div></div>
+    <div class="card"><div class="card-title">Avg Cost per Entry</div><div class="card-value" id="risk-avg-cost">AED 0.00</div><div class="card-sub">Per wastage incident</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="form-section" style="margin-bottom:0"><h2 style="margin-bottom:20px">Wastage by Item</h2><div id="risk-items"></div></div>
+    <div class="form-section" style="margin-bottom:0"><h2 style="margin-bottom:20px">Wastage by Reason</h2><div id="risk-reasons"></div></div>
+  </div>
+  <div style="height:20px"></div>
+  <div class="grid-2">
+    <div class="form-section" style="margin-bottom:0"><h2 style="margin-bottom:20px">Wastage by Category</h2><div id="risk-categories"></div></div>
+    <div class="form-section" style="margin-bottom:0"><h2 style="margin-bottom:20px">Wastage by Staff</h2><div id="risk-staff"></div></div>
+  </div>
+  <div style="height:20px"></div>
+  <div class="form-section">
+    <h2 style="margin-bottom:16px">7-Day Trend</h2>
+    <div id="risk-trend" style="display:flex;align-items:flex-end;gap:8px;height:120px;padding:8px 0;"></div>
+    <div id="risk-trend-labels" style="display:flex;gap:8px;margin-top:6px;"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var SUPABASE_URL = 'https://bgqsuqilxuequieioibd.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_WFlusXd3zZkIO4-YVw8GTQ_d7nmPD_s';
+var SB_HEADERS = {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
+
+var db = {
+  from: function(t) {
+    return {
+      select: function(c) {
+        c = c||'*';
+        return fetch(SUPABASE_URL+'/rest/v1/'+t+'?select='+c+'&order=created_at.desc',{headers:SB_HEADERS})
+          .then(function(r){return r.json().then(function(d){return r.ok?{data:d,error:null}:{data:null,error:d};});});
+      },
+      insert: function(rows) {
+        return fetch(SUPABASE_URL+'/rest/v1/'+t,{method:'POST',headers:SB_HEADERS,body:JSON.stringify(rows)})
+          .then(function(r){return r.ok?{error:null}:r.json().then(function(e){return{error:e};});});
+      },
+      delete: function() {
+        return {eq:function(col,val){
+          return fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+col+'=eq.'+val,{method:'DELETE',headers:SB_HEADERS})
+            .then(function(r){return{error:r.ok?null:{message:'Delete failed'}};});
+        }};
+      }
+    };
+  }
+};
+
+var cache=[], MAX_ROWS=10, rowCount=0;
+var CAT_OPTIONS=['Sandwiches','Avo Toast','Pots','Croissants','Cookies','Banana Bread','Quiches','Nattas','Coffee','Other'];
+var UNIT_OPTIONS=['portions','kg','g','L','mL','pieces','plates','bottles','packs','trays'];
+var REASON_OPTIONS=['Overproduction','Spoilage / Expired','Prep Error','Cooking Error','Dropped / Spilled','Customer Return / Complaint','Incorrect Order','Cross-contamination','Portion Inconsistency','Storage Failure','Other'];
+var ITEM_CATALOG={
+  'Egg Mayo & Turkey Muffin':{category:'Sandwiches',unit:'portions',costPerUnit:13.70},
+  'Egg, Turkey & Cheese Wrap':{category:'Sandwiches',unit:'portions',costPerUnit:16.70},
+  'Croque Monsieur Turkey & Cheese':{category:'Sandwiches',unit:'portions',costPerUnit:16.70},
+  'Breakaway Brie':{category:'Sandwiches',unit:'portions',costPerUnit:16.70},
+  'Aero Avo Wrap':{category:'Sandwiches',unit:'portions',costPerUnit:15.70},
+  'Sourdough Chicken Club':{category:'Sandwiches',unit:'portions',costPerUnit:23.00},
+  'Grilled Chicken Guacamole':{category:'Sandwiches',unit:'portions',costPerUnit:25.50},
+  'Avo Chicken Caesar Wrap':{category:'Sandwiches',unit:'portions',costPerUnit:24.50},
+  'Roasted Beef Sourdough':{category:'Sandwiches',unit:'portions',costPerUnit:20.00},
+  'Breaded Chicken Ciabatta':{category:'Sandwiches',unit:'portions',costPerUnit:16.00},
+  'Tuna Egg Sourdough':{category:'Sandwiches',unit:'portions',costPerUnit:16.00},
+  'Cajun Grilled Chicken':{category:'Sandwiches',unit:'portions',costPerUnit:16.00},
+  'Smoke Turkey Ham & Cheese':{category:'Sandwiches',unit:'portions',costPerUnit:16.00},
+  'Shredded Chicken':{category:'Sandwiches',unit:'portions',costPerUnit:18.00},
+  'Egg Avocado Toast':{category:'Avo Toast',unit:'portions',costPerUnit:8.60},
+  'Lemon-Herb Smash Toast':{category:'Avo Toast',unit:'portions',costPerUnit:11.60},
+  'PB, Avocado & Banana Toast':{category:'Avo Toast',unit:'portions',costPerUnit:10.00},
+  'Chia Mango Pot':{category:'Pots',unit:'portions',costPerUnit:14.50},
+  'Chia Berry Pot':{category:'Pots',unit:'portions',costPerUnit:15.50},
+  'Chia Peanut Butter & Banana Pot':{category:'Pots',unit:'portions',costPerUnit:13.00},
+  'Cheese Croissant':{category:'Croissants',unit:'portions',costPerUnit:2.08},
+  'Plain Butter Croissant':{category:'Croissants',unit:'portions',costPerUnit:2.34},
+  'Almond Croissant':{category:'Croissants',unit:'portions',costPerUnit:3.54},
+  'Nutella Croissant':{category:'Croissants',unit:'portions',costPerUnit:3.97},
+  'Turkey Ham and Cheese Croissant':{category:'Croissants',unit:'portions',costPerUnit:8.17},
+  'Tomato and Cheese Croissant':{category:'Croissants',unit:'portions',costPerUnit:7.76},
+  'Chocolate Chip Cookie':{category:'Cookies',unit:'portions',costPerUnit:3.75},
+  'Vegan Cookie':{category:'Cookies',unit:'portions',costPerUnit:4.85},
+  'Double Chocolate Cookie':{category:'Cookies',unit:'portions',costPerUnit:3.75},
+  'Banana Bread':{category:'Banana Bread',unit:'portions',costPerUnit:2.86},
+  'Apple and Date Loaf':{category:'Banana Bread',unit:'portions',costPerUnit:2.86},
+  'Chicken Mushroom Quiche':{category:'Quiches',unit:'portions',costPerUnit:5.34},
+  'Leek Broccoli Quiche':{category:'Quiches',unit:'portions',costPerUnit:5.34},
+  'Onion Mushroom Quiche':{category:'Quiches',unit:'portions',costPerUnit:5.34},
+  'Nattas - Original':{category:'Nattas',unit:'portions',costPerUnit:4.86},
+  'Nattas - Salted Caramel':{category:'Nattas',unit:'portions',costPerUnit:4.86},
+  'Nattas - Mixed Berries':{category:'Nattas',unit:'portions',costPerUnit:4.86},
+  'Nattas - Apple':{category:'Nattas',unit:'portions',costPerUnit:4.86},
+  'Espresso Beans - Ventum Blend':{category:'Coffee',unit:'g',costPerUnit:0.126},
+  'Espresso Beans - Kaffa Single Origin':{category:'Coffee',unit:'g',costPerUnit:0.126},
+  'Espresso Beans - La Esperanza (Colombia)':{category:'Coffee',unit:'g',costPerUnit:0.128},
+  'Espresso Beans - Desert Gold (Colombia)':{category:'Coffee',unit:'g',costPerUnit:0.092},
+  'Espresso Beans - Oromia, Guji Wush Wush G1 (Ethiopia)':{category:'Coffee',unit:'g',costPerUnit:0.148}
+};
+var ITEMS_BY_CAT={};
+for(var _n in ITEM_CATALOG){var _c=ITEM_CATALOG[_n].category;if(!ITEMS_BY_CAT[_c])ITEMS_BY_CAT[_c]=[];ITEMS_BY_CAT[_c].push(_n);}
+
+function catOpts(v){v=v||'';return CAT_OPTIONS.map(function(o){return'<option'+(o===v?' selected':'')+'>'+o+'</option>';}).join('');}
+function unitOpts(v){v=v||'portions';return UNIT_OPTIONS.map(function(o){return'<option'+(o===v?' selected':'')+'>'+o+'</option>';}).join('');}
+function reasonOpts(){return'<option value="">-- Reason --</option>'+REASON_OPTIONS.map(function(o){return'<option>'+o+'</option>';}).join('');}
+
+function makeRow(n){
+  var tr=document.createElement('tr');
+  tr.className='item-row'; tr.dataset.rowId=n;
+  tr.innerHTML='<td class="row-num">'+n+'</td>'+
+    '<td><select class="r-cat"><option value="">-- Category --</option>'+catOpts()+'</select></td>'+
+    '<td><select class="r-item-sel" disabled style="width:100%"><option value="">-- Pick category first --</option></select>'+
+    '<input type="text" class="r-item-other" placeholder="Item name" style="display:none;width:100%"></td>'+
+    '<td><input type="number" class="r-qty" min="0.01" step="0.01" placeholder="Qty"></td>'+
+    '<td><select class="r-unit">'+unitOpts()+'</select></td>'+
+    '<td><input type="number" class="r-cost" min="0" step="0.01" placeholder="Auto"></td>'+
+    '<td><select class="r-reason">'+reasonOpts()+'</select></td>'+
+    '<td><input type="text" class="r-notes" placeholder="Notes"></td>'+
+    '<td class="row-del"><button type="button" onclick="clearRow(this)">x</button></td>';
+  var cs=tr.querySelector('.r-cat'),is=tr.querySelector('.r-item-sel'),io=tr.querySelector('.r-item-other'),qi=tr.querySelector('.r-qty'),us=tr.querySelector('.r-unit'),ci=tr.querySelector('.r-cost');
+  function gi(){return is.style.display!=='none'?is.value:io.value.trim();}
+  function cc(){var e=ITEM_CATALOG[gi()];if(!e)return;var q=parseFloat(qi.value)||0;if(q>0)ci.value=(q*e.costPerUnit).toFixed(2);}
+  cs.addEventListener('change',function(){
+    var cat=cs.value,items=ITEMS_BY_CAT[cat]||[];
+    ci.value='';delete ci.dataset.autoCalc;
+    if(items.length>0){is.innerHTML='<option value="">-- Select item --</option>'+items.map(function(i){return'<option>'+i+'</option>';}).join('')+'<option value="__other__">Other...</option>';is.style.display='';is.disabled=false;io.style.display='none';io.value='';}
+    else{is.style.display='none';io.style.display='';io.value='';io.focus();}
+  });
+  is.addEventListener('change',function(){
+    if(is.value==='__other__'){is.style.display='none';io.style.display='';io.value='';io.focus();ci.value='';delete ci.dataset.autoCalc;return;}
+    var e=ITEM_CATALOG[is.value];if(e){us.value=e.unit;ci.dataset.autoCalc='1';cc();}
+  });
+  qi.addEventListener('input',function(){if(ci.dataset.autoCalc==='1')cc();});
+  ci.addEventListener('input',function(){delete ci.dataset.autoCalc;});
+  return tr;
+}
+
+function clearRow(btn){
+  var tr=btn.closest('tr');
+  tr.querySelectorAll('input').forEach(function(el){el.value='';});
+  tr.querySelectorAll('select').forEach(function(el){el.selectedIndex=0;});
+  var is=tr.querySelector('.r-item-sel'),io=tr.querySelector('.r-item-other');
+  if(is){is.innerHTML='<option value="">-- Pick category first --</option>';is.disabled=true;is.style.display='';}
+  if(io){io.style.display='none';io.value='';}
+}
+
+function addItemRow(){if(rowCount>=MAX_ROWS)return;rowCount++;document.getElementById('item-rows-body').appendChild(makeRow(rowCount));updateRowUI();}
+function updateRowUI(){var b=document.getElementById('add-row-btn'),l=document.getElementById('row-count-label');b.disabled=rowCount>=MAX_ROWS;b.style.opacity=rowCount>=MAX_ROWS?'0.4':'1';l.textContent=rowCount>=MAX_ROWS?'Maximum 10 rows reached':rowCount+' / '+MAX_ROWS+' rows';}
+function initRows(){document.getElementById('item-rows-body').innerHTML='';rowCount=0;for(var i=0;i<3;i++)addItemRow();}
+function clearLog(){initRows();var s=document.getElementById('f-staff').value;initForm();document.getElementById('f-staff').value=s;document.getElementById('save-status').textContent='';}
+function initForm(){var n=new Date();document.getElementById('f-date').value=n.toISOString().split('T')[0];document.getElementById('f-time').value=n.toTimeString().slice(0,5);}
+function updateItemsDatalist(){var ci=Object.keys(ITEM_CATALOG),db2=cache.map(function(d){return d.item;}).filter(function(i){return!ITEM_CATALOG[i];});document.getElementById('items-datalist').innerHTML=ci.concat(db2).map(function(i){return'<option value="'+i+'">';}).join('');}
+
+function saveAllEntries(){
+  var staff=document.getElementById('f-staff').value.trim();
+  if(!staff){showToast('Please enter your name',true);return;}
+  var date=document.getElementById('f-date').value,time=document.getElementById('f-time').value,sl=document.getElementById('f-shift-label').value.trim();
+  var entries=[],valid=true;
+  document.querySelectorAll('#item-rows-body .item-row').forEach(function(tr){
+    var is=tr.querySelector('.r-item-sel'),io=tr.querySelector('.r-item-other');
+    var item=(is.style.display!=='none'&&is.value&&is.value!=='__other__')?is.value:io.value.trim();
+    var qty=parseFloat(tr.querySelector('.r-qty').value),reason=tr.querySelector('.r-reason').value;
+    if(!item&&!qty)return;
+    if(!item){showToast('Row '+tr.dataset.rowId+': missing item',true);valid=false;return;}
+    if(!qty||qty<=0){showToast('Row '+tr.dataset.rowId+': missing qty',true);valid=false;return;}
+    if(!reason){showToast('Row '+tr.dataset.rowId+': select a reason',true);valid=false;return;}
+    var cv=tr.querySelector('.r-cost').value;
+    entries.push({date:date,time:time,shift_label:sl,staff:staff,item:item,category:tr.querySelector('.r-cat').value||null,qty:qty,unit:tr.querySelector('.r-unit').value,cost:cv!==''?parseFloat(cv):0,reason:reason,notes:tr.querySelector('.r-notes').value.trim()});
+  });
+  if(!valid)return;
+  if(!entries.length){showToast('No items to save',true);return;}
+  var btn=document.getElementById('submit-btn');btn.disabled=true;btn.textContent='Saving...';
+  db.from('wastage').insert(entries).then(function(r){
+    btn.disabled=false;btn.textContent='Save All Entries';
+    if(r.error){showToast('Error saving',true);console.error(r.error);return;}
+    showToast(entries.length+' item'+(entries.length>1?'s':'')+' saved');
+    document.getElementById('save-status').textContent='Saved '+entries.length+' item'+(entries.length>1?'s':'')+' at '+time;
+    initRows();loadData();
+  });
+}
+
+function loadData(){
+  return db.from('wastage').select('*').then(function(r){
+    if(r.error){console.error(r.error);setSyncStatus(false);return;}
+    cache=r.data||[];setSyncStatus(true);updateItemsDatalist();
+    var p=document.querySelector('.page.active');
+    if(p&&p.id==='page-dashboard')renderDashboard();
+    if(p&&p.id==='page-history')renderHistory();
+    if(p&&p.id==='page-risk')renderRisk();
+  });
+}
+function setSyncStatus(ok){var d=document.getElementById('sync-dot'),l=document.getElementById('sync-label');if(ok){d.classList.remove('offline');l.textContent='Connected';}else{d.classList.add('offline');l.textContent='Offline';}}
+function showPage(id){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});document.getElementById('page-'+id).classList.add('active');var map=['dashboard','log','history','risk'];document.querySelectorAll('.nav-tab')[map.indexOf(id)].classList.add('active');if(id==='dashboard')renderDashboard();if(id==='history')renderHistory();if(id==='risk')renderRisk();}
+function showToast(msg,isErr){var t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isErr?' error':'');t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2800);}
+function fmt(n){return n==null?'--':'AED '+Number(n).toFixed(2);}
+function fmtSum(n){return'AED '+(n||0).toFixed(2);}
+function today(){return new Date().toISOString().split('T')[0];}
+function reasonBadge(r){var m={'Overproduction':'badge-orange','Spoilage / Expired':'badge-red','Prep Error':'badge-purple','Cooking Error':'badge-purple','Dropped / Spilled':'badge-blue','Customer Return / Complaint':'badge-red','Incorrect Order':'badge-orange','Cross-contamination':'badge-red','Portion Inconsistency':'badge-orange','Storage Failure':'badge-red','Other':'badge-blue'};return'<span class="badge '+(m[r]||'badge-blue')+'">'+r+'</span>';}
+function riskColor(p){return p>=0.6?'#ef5350':p>=0.3?'#ffa726':'#66bb6a';}
+function makeRiskBars(g,total,max){max=max||10;var s=Object.entries(g).sort(function(a,b){return b[1]-a[1];}).slice(0,max),mx=s[0]?s[0][1]:1;return s.map(function(kv){var key=kv[0],val=kv[1],pct=val/mx,tp=val/total,c=riskColor(tp);return'<div class="risk-bar-wrap"><div class="risk-label"><span>'+(key||'--')+'</span><span style="color:'+c+';font-weight:600">'+fmt(val)+' <span style="color:var(--muted);font-weight:400">('+Math.round(tp*100)+'%)</span></span></div><div class="risk-bar-bg"><div class="risk-bar-fill" style="width:'+(pct*100).toFixed(1)+'%;background:'+c+'"></div></div></div>';}).join('');}
+
+function renderDashboard(){
+  var data=cache,ts=today(),tc=data.reduce(function(s,d){return s+(d.cost!=null?Number(d.cost):0);},0),tdc=data.filter(function(d){return d.date===ts;}).reduce(function(s,d){return s+Number(d.cost);},0);
+  document.getElementById('stat-total-cost').textContent=fmtSum(tc);document.getElementById('stat-total-sub').textContent=data.length+' total entries';document.getElementById('stat-today').textContent=fmtSum(tdc);document.getElementById('stat-entries').textContent=data.length;document.getElementById('stat-entries-sub').textContent=data.filter(function(d){return d.date===ts;}).length+' today';document.getElementById('dash-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var bc={};data.forEach(function(d){bc[d.item]=(bc[d.item]||0)+Number(d.cost);});var ti=Object.entries(bc).sort(function(a,b){return b[1]-a[1];})[0];
+  document.getElementById('stat-top-item').textContent=ti?ti[0]:'--';document.getElementById('stat-top-item-cost').textContent=ti?fmt(ti[1])+' total wasted':'No data yet';
+  document.getElementById('dash-recent-body').innerHTML=!data.length?'<tr><td colspan="5"><div class="empty-state"><div class="icon">&#x1F4CB;</div><div>No entries yet</div></div></td></tr>':data.slice(0,8).map(function(d){return'<tr><td><strong>'+d.item+'</strong></td><td>'+d.qty+' '+d.unit+'</td><td class="cost-cell">'+fmt(Number(d.cost))+'</td><td>'+reasonBadge(d.reason)+'</td><td><div class="shift-date">'+d.date+'</div><div class="shift-info">'+d.time+(d.shift_label?' - '+d.shift_label:'')+'</div></td></tr>';}).join('');
+  document.getElementById('dash-top-items').innerHTML=!data.length?'<div class="empty-state"><div class="icon">&#x1F4E6;</div><div>No data yet</div></div>':makeRiskBars(bc,tc,8);
+}
+
+function renderHistory(){
+  var data=cache.slice(),from=document.getElementById('filter-from').value,to=document.getElementById('filter-to').value,reason=document.getElementById('filter-reason').value,cat=document.getElementById('filter-category').value,search=document.getElementById('filter-search').value.toLowerCase();
+  if(from)data=data.filter(function(d){return d.date>=from;});if(to)data=data.filter(function(d){return d.date<=to;});if(reason)data=data.filter(function(d){return d.reason===reason;});if(cat)data=data.filter(function(d){return d.category===cat;});if(search)data=data.filter(function(d){return d.item.toLowerCase().indexOf(search)>=0||d.staff.toLowerCase().indexOf(search)>=0;});
+  document.getElementById('history-count').textContent=data.length+' entries - Total: '+fmtSum(data.reduce(function(s,d){return s+(d.cost!=null?Number(d.cost):0);},0));
+  document.getElementById('history-body').innerHTML=!data.length?'<tr><td colspan="10"><div class="empty-state"><div class="icon">&#x1F50D;</div><div>No entries match</div></div></td></tr>':data.map(function(d){return'<tr><td><span class="shift-date">'+d.date+'</span></td><td><span class="shift-info">'+d.time+(d.shift_label?'<br>'+d.shift_label:'')+'</span></td><td>'+d.staff+'</td><td><strong>'+d.item+'</strong></td><td><span class="badge badge-blue" style="font-size:10px">'+(d.category||'--')+'</span></td><td>'+d.qty+' '+d.unit+'</td><td class="cost-cell">'+fmt(Number(d.cost))+'</td><td>'+reasonBadge(d.reason)+'</td><td class="notes-cell">'+(d.notes||'--')+'</td><td><button class="btn btn-danger btn-sm" onclick="deleteEntry('+d.id+')">x</button></td></tr>';}).join('');
+}
+function clearFilters(){['filter-from','filter-to','filter-reason','filter-category','filter-search'].forEach(function(id){document.getElementById(id).value='';});renderHistory();}
+function deleteEntry(id){if(!confirm('Delete this entry?'))return;db.from('wastage').delete().eq('id',id).then(function(r){if(r.error){showToast('Error deleting',true);return;}showToast('Entry deleted');loadData();});}
+
+function renderRisk(){
+  var data=cache,total=data.reduce(function(s,d){return s+(d.cost!=null?Number(d.cost):0);},0);
+  if(!data.length){['risk-items','risk-reasons','risk-categories','risk-staff'].forEach(function(id){document.getElementById(id).innerHTML='<div class="empty-state" style="padding:24px"><div class="icon">&#x1F4CA;</div><div>No data yet</div></div>';});return;}
+  var bi={},br={},bc={},bs={};
+  data.forEach(function(d){bi[d.item]=(bi[d.item]||0)+Number(d.cost);br[d.reason]=(br[d.reason]||0)+Number(d.cost);if(d.category)bc[d.category]=(bc[d.category]||0)+Number(d.cost);bs[d.staff]=(bs[d.staff]||0)+Number(d.cost);});
+  document.getElementById('risk-items').innerHTML=makeRiskBars(bi,total,10);document.getElementById('risk-reasons').innerHTML=makeRiskBars(br,total,10);document.getElementById('risk-categories').innerHTML=makeRiskBars(bc,total,10);document.getElementById('risk-staff').innerHTML=makeRiskBars(bs,total,10);
+  var tr2=Object.entries(br).sort(function(a,b){return b[1]-a[1];})[0],tc2=Object.entries(bc).sort(function(a,b){return b[1]-a[1];})[0],ts2=Object.entries(bs).sort(function(a,b){return b[1]-a[1];})[0];
+  document.getElementById('risk-top-reason').textContent=tr2?tr2[0]:'--';document.getElementById('risk-top-reason-cost').textContent=tr2?fmt(tr2[1])+' total':'';document.getElementById('risk-top-cat').textContent=tc2?tc2[0]:'--';document.getElementById('risk-top-cat-cost').textContent=tc2?fmt(tc2[1])+' total':'';document.getElementById('risk-top-staff').textContent=ts2?ts2[0]:'--';document.getElementById('risk-top-staff-cost').textContent=ts2?fmt(ts2[1])+' total':'';
+  var pe=data.filter(function(d){return d.cost!=null;}).length;document.getElementById('risk-avg-cost').textContent=pe?fmtSum(total/pe):'--';
+  var days=[];for(var i=6;i>=0;i--){var dd=new Date();dd.setDate(dd.getDate()-i);var str=dd.toISOString().split('T')[0],lbl=dd.toLocaleDateString('en-AU',{weekday:'short'}),cost=data.filter(function(e){return e.date===str;}).reduce(function(s,e){return s+Number(e.cost);},0);days.push({str:str,lbl:lbl,cost:cost});}
+  var mx=Math.max.apply(null,days.map(function(d){return d.cost;}).concat([1]));
+  document.getElementById('risk-trend').innerHTML=days.map(function(d){var h=Math.max(4,Math.round((d.cost/mx)*100)),c=d.cost===0?'var(--surface2)':riskColor(d.cost/mx);return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;"><div style="font-size:11px;color:var(--muted)">'+(d.cost>0?fmt(d.cost):'')+'</div><div style="width:100%;height:'+h+'px;background:'+c+';border-radius:4px 4px 0 0;min-height:4px"></div></div>';}).join('');
+  document.getElementById('risk-trend-labels').innerHTML=days.map(function(d){return'<div style="flex:1;text-align:center;font-size:11px;color:var(--muted)">'+d.lbl+'<br><span style="color:var(--text);font-size:10px">'+d.str.slice(5)+'</span></div>';}).join('');
+}
+
+function exportCSV(){if(!cache.length){showToast('No data to export');return;}var h=['Date','Time','Shift Label','Staff','Item','Category','Qty','Unit','Cost','Reason','Notes'],rows=cache.map(function(d){return[d.date,d.time,d.shift_label||'',d.staff,d.item,d.category||'',d.qty,d.unit,d.cost,d.reason,(d.notes||'').replace(/,/g,' ')];});var csv=[h].concat(rows).map(function(r){return r.join(',');}).join('\n');var a=document.createElement('a');a.href='data:text/csv,'+encodeURIComponent(csv);a.download='wastage_'+today()+'.csv';a.click();showToast('CSV exported');}
+
+initForm(); initRows();
+document.getElementById('dash-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+document.getElementById('filter-search').addEventListener('input',renderHistory);
+setInterval(loadData,30000);
+loadData();
+</script>
+</body>
+</html>
