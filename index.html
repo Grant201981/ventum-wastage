@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>F&B Wastage Tracker</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.63.4/dist/umd/supabase.min.js"></script>
 <style>
   :root {
     --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3250;
@@ -270,8 +270,20 @@
 // ─── Supabase Setup ─────────────────────────────────────────
 const SUPABASE_URL = 'https://bgqsuqilxuequieioibd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_WFlusXd3zZkIO4-YVw8GTQ_d7nmPD_s';
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+let db;
+try {
+  const { createClient } = supabase;
+  db = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  console.error('Supabase failed to initialise:', e);
+  // Stub so tab navigation and form UI still work
+  db = {
+    from: () => ({ select: () => Promise.resolve({ data: [], error: { message: 'No database connection' } }),
+                   insert: () => Promise.resolve({ error: { message: 'No database connection' } }),
+                   delete: () => ({ eq: () => Promise.resolve({ error: null }) }) }),
+    channel: () => ({ on: function(){ return this; }, subscribe: function(cb){ cb('CLOSED'); return this; } })
+  };
+}
 
 let cache = [];
 const MAX_ROWS = 10;
@@ -613,12 +625,4 @@ function makeRiskBars(grouped, total, maxBars=10) {
   const max = sorted[0]?.[1]||1;
   return sorted.map(([key,val]) => {
     const pct=val/max, totalPct=val/total, color=riskColor(totalPct);
-    return `<div class="risk-bar-wrap">
-      <div class="risk-label"><span>${key||'—'}</span><span style="color:${color};font-weight:600">${fmt(val)} <span style="color:var(--muted);font-weight:400">(${(totalPct*100).toFixed(0)}%)</span></span></div>
-      <div class="risk-bar-bg"><div class="risk-bar-fill" style="width:${(pct*100).toFixed(1)}%;background:${color}"></div></div>
-    </div>`;
-  }).join('');
-}
-
-// ─── Dashboard ───────────────────────────────────────────────
-functio
+    return `<div class="risk-
